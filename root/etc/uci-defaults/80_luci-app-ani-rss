@@ -1,0 +1,9 @@
+#!/bin/sh
+
+mkdir -p /etc/ani-rss
+mkdir -p /var/log
+
+# Enable the init script if not enabled
+/etc/init.d/ani-rss enable 2>/dev/null || true
+
+exit 0

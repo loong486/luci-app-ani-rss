@@ -1,0 +1,308 @@
+#!/bin/sh
+# ani-rss-helper: CLI and RPCD backend helper for ANI-RSS
+
+LOG_FILE="/var/log/ani-rss.log"
+PID_FILE="/var/run/ani-rss.pid"
+
+get_config() {
+	uci -q get ani-rss.main."$1"
+}
+
+get_config_dir() {
+	local dir="$(get_config config_dir)"
+	[ -z "$dir" ] && dir="/etc/ani-rss"
+	echo "$dir"
+}
+
+find_java() {
+	local custom_java="$(get_config java_path)"
+	if [ -n "$custom_java" ] && [ -x "$custom_java" ]; then
+		echo "$custom_java"
+		return 0
+	fi
+
+	local config_dir="$(get_config_dir)"
+	if [ -x "$config_dir/jre/bin/java" ]; then
+		echo "$config_dir/jre/bin/java"
+		return 0
+	fi
+
+	if [ -x "/opt/ani-rss/jre/bin/java" ]; then
+		echo "/opt/ani-rss/jre/bin/java"
+		return 0
+	fi
+
+	if [ -x "/usr/bin/java" ]; then
+		echo "/usr/bin/java"
+		return 0
+	fi
+
+	if command -v java >/dev/null 2>&1; then
+		command -v java
+		return 0
+	fi
+
+	return 1
+}
+
+find_jar() {
+	local custom_jar="$(get_config jar_path)"
+	if [ -n "$custom_jar" ] && [ -f "$custom_jar" ]; then
+		echo "$custom_jar"
+		return 0
+	fi
+
+	local config_dir="$(get_config_dir)"
+	if [ -f "$config_dir/ani-rss.jar" ]; then
+		echo "$config_dir/ani-rss.jar"
+		return 0
+	fi
+
+	if [ -f "/opt/ani-rss/ani-rss.jar" ]; then
+		echo "/opt/ani-rss/ani-rss.jar"
+		return 0
+	fi
+
+	if [ -f "/usr/share/ani-rss/ani-rss.jar" ]; then
+		echo "/usr/share/ani-rss/ani-rss.jar"
+		return 0
+	fi
+
+	# Fallback to expected default location
+	echo "$config_dir/ani-rss.jar"
+	return 1
+}
+
+get_disk_free() {
+	local path="$1"
+	[ ! -d "$path" ] && path="$(dirname "$path")"
+	[ ! -d "$path" ] && path="/"
+	df -m "$path" 2>/dev/null | awk 'NR==2 {print $4}' || echo "0"
+}
+
+cmd_status() {
+	local running=0
+	local pid=""
+	local mem_kb=0
+	local port="$(get_config port)"
+	[ -z "$port" ] && port="7789"
+	local config_dir="$(get_config_dir)"
+
+	# Check process
+	pid=$(pgrep -f "ani-rss.jar" | head -n 1)
+	if [ -n "$pid" ] && [ -d "/proc/$pid" ]; then
+		running=1
+		mem_kb=$(awk '/VmRSS/{print $2}' "/proc/$pid/status" 2>/dev/null || echo 0)
+	fi
+
+	# Java info
+	local java_bin="$(find_java 2>/dev/null)"
+	local java_ver=""
+	if [ -n "$java_bin" ] && [ -x "$java_bin" ]; then
+		java_ver=$("$java_bin" -version 2>&1 | head -n 1 | sed 's/"//g')
+	fi
+
+	# JAR info
+	local jar_path="$(find_jar 2>/dev/null)"
+	local jar_exists=0
+	local jar_size_mb=0
+	if [ -n "$jar_path" ] && [ -f "$jar_path" ]; then
+		jar_exists=1
+		local bytes=$(wc -c < "$jar_path" 2>/dev/null || stat -c %s "$jar_path" 2>/dev/null || echo 0)
+		jar_size_mb=$(awk "BEGIN {printf \"%.1f\", $bytes / 1048576}")
+	fi
+
+	local disk_free_mb=$(get_disk_free "$config_dir")
+	local arch=$(uname -m 2>/dev/null || echo "unknown")
+
+	cat <<EOF
+{
+  "running": $running,
+  "pid": ${pid:-0},
+  "port": ${port:-7789},
+  "memory_kb": ${mem_kb:-0},
+  "java_bin": "${java_bin:-}",
+  "java_version": "${java_ver:-}",
+  "jar_path": "${jar_path:-}",
+  "jar_exists": $jar_exists,
+  "jar_size_mb": ${jar_size_mb:-0},
+  "config_dir": "${config_dir}",
+  "disk_free_mb": ${disk_free_mb:-0},
+  "arch": "${arch}"
+}
+EOF
+}
+
+cmd_download_jar() {
+	local config_dir="$(get_config_dir)"
+	mkdir -p "$config_dir" || { echo "{\"success\": false, \"message\": \"Failed to create config dir\"}"; return 1; }
+
+	local mirror="$(get_config mirror_source)"
+	local custom_mirror="$(get_config custom_mirror)"
+	local raw_url="https://github.com/wushuo894/ani-rss/releases/latest/download/ani-rss.jar"
+	local download_url="$raw_url"
+
+	case "$mirror" in
+		ghfast)
+			download_url="https://ghfast.top/$raw_url"
+			;;
+		ghproxy)
+			download_url="https://mirror.ghproxy.com/$raw_url"
+			;;
+		custom)
+			[ -n "$custom_mirror" ] && download_url="${custom_mirror%/}/$raw_url"
+			;;
+		*)
+			download_url="$raw_url"
+			;;
+	esac
+
+	local target_file="$config_dir/ani-rss.jar"
+	local temp_file="$config_dir/ani-rss.jar.tmp"
+
+	echo "Downloading ani-rss.jar from $download_url ..." >> "$LOG_FILE"
+
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL --connect-timeout 15 -m 600 "$download_url" -o "$temp_file"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q --timeout=15 -O "$temp_file" "$download_url"
+	else
+		echo "{\"success\": false, \"message\": \"Neither curl nor wget is available\"}"
+		return 1
+	fi
+
+	if [ ! -s "$temp_file" ]; then
+		rm -f "$temp_file"
+		echo "{\"success\": false, \"message\": \"Downloaded file is empty or download failed\"}"
+		return 1
+	fi
+
+	local file_size=$(wc -c < "$temp_file")
+	if [ "$file_size" -lt 10000000 ]; then
+		rm -f "$temp_file"
+		echo "{\"success\": false, \"message\": \"Downloaded file is too small (${file_size} bytes), verify mirror url\"}"
+		return 1
+	fi
+
+	mv -f "$temp_file" "$target_file"
+	chmod 644 "$target_file"
+	echo "ani-rss.jar installed successfully to $target_file" >> "$LOG_FILE"
+	echo "{\"success\": true, \"message\": \"ani-rss.jar downloaded successfully\", \"path\": \"$target_file\"}"
+	return 0
+}
+
+cmd_download_jre() {
+	local config_dir="$(get_config_dir)"
+	local jre_dir="$config_dir/jre"
+	mkdir -p "$config_dir" || { echo "{\"success\": false, \"message\": \"Failed to create config dir\"}"; return 1; }
+
+	local arch=$(uname -m 2>/dev/null || echo "aarch64")
+	local jre_url=""
+
+	# High performance musl JRE 21 from BellSoft Liberica for Alpine/OpenWrt
+	case "$arch" in
+		aarch64|arm64)
+			jre_url="https://download.bell-sw.com/java/21.0.6+10/bellsoft-jre21.0.6+10-linux-aarch64-musl.tar.gz"
+			;;
+		x86_64|amd64)
+			jre_url="https://download.bell-sw.com/java/21.0.6+10/bellsoft-jre21.0.6+10-linux-x64-musl.tar.gz"
+			;;
+		armv7*|armhf)
+			jre_url="https://download.bell-sw.com/java/21.0.6+10/bellsoft-jre21.0.6+10-linux-arm32-vfp-hflt-musl.tar.gz"
+			;;
+		*)
+			echo "{\"success\": false, \"message\": \"Unsupported CPU architecture for auto JRE: $arch\"}"
+			return 1
+			;;
+	esac
+
+	local mirror="$(get_config mirror_source)"
+	local custom_mirror="$(get_config custom_mirror)"
+	case "$mirror" in
+		ghfast)
+			jre_url="https://ghfast.top/$jre_url"
+			;;
+		ghproxy)
+			jre_url="https://mirror.ghproxy.com/$jre_url"
+			;;
+		custom)
+			[ -n "$custom_mirror" ] && jre_url="${custom_mirror%/}/$jre_url"
+			;;
+	esac
+
+	local temp_tar="$config_dir/jre_download.tar.gz"
+	echo "Downloading musl JRE for $arch from $jre_url ..." >> "$LOG_FILE"
+
+	if command -v curl >/dev/null 2>&1; then
+		curl -fsSL --connect-timeout 15 -m 900 "$jre_url" -o "$temp_tar"
+	elif command -v wget >/dev/null 2>&1; then
+		wget -q --timeout=15 -O "$temp_tar" "$jre_url"
+	else
+		echo "{\"success\": false, \"message\": \"Neither curl nor wget available\"}"
+		return 1
+	fi
+
+	if [ ! -s "$temp_tar" ]; then
+		rm -f "$temp_tar"
+		echo "{\"success\": false, \"message\": \"JRE download failed or file empty\"}"
+		return 1
+	fi
+
+	echo "Extracting JRE to $jre_dir ..." >> "$LOG_FILE"
+	rm -rf "$jre_dir"
+	mkdir -p "$jre_dir"
+	tar -xzf "$temp_tar" -C "$jre_dir" --strip-components=1 2>> "$LOG_FILE"
+	rm -f "$temp_tar"
+
+	if [ -x "$jre_dir/bin/java" ]; then
+		echo "musl JRE deployed successfully to $jre_dir/bin/java" >> "$LOG_FILE"
+		echo "{\"success\": true, \"message\": \"musl JRE installed successfully\", \"java_bin\": \"$jre_dir/bin/java\"}"
+		return 0
+	else
+		echo "{\"success\": false, \"message\": \"Extraction finished but $jre_dir/bin/java not executable\"}"
+		return 1
+	fi
+}
+
+cmd_get_log() {
+	local lines="$1"
+	[ -z "$lines" ] && lines=100
+	if [ -f "$LOG_FILE" ]; then
+		tail -n "$lines" "$LOG_FILE" 2>/dev/null
+	else
+		echo "Log file $LOG_FILE does not exist yet."
+	fi
+}
+
+cmd_clear_log() {
+	echo "" > "$LOG_FILE" 2>/dev/null
+	echo "{\"success\": true}"
+}
+
+case "$1" in
+	status)
+		cmd_status
+		;;
+	download_jar)
+		cmd_download_jar
+		;;
+	download_jre)
+		cmd_download_jre
+		;;
+	get_log)
+		cmd_get_log "$2"
+		;;
+	clear_log)
+		cmd_clear_log
+		;;
+	find_java)
+		find_java
+		;;
+	find_jar)
+		find_jar
+		;;
+	*)
+		echo "Usage: $0 {status|download_jar|download_jre|get_log [lines]|clear_log|find_java|find_jar}"
+		exit 1
+		;;
+esac

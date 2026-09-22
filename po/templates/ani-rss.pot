@@ -1,0 +1,146 @@
+msgid ""
+msgstr "Content-Type: text/plain; charset=UTF-8\n"
+
+msgid "ANI-RSS 追番"
+msgstr ""
+
+msgid "ANI-RSS 追番助手"
+msgstr ""
+
+msgid "运行概览"
+msgstr ""
+
+msgid "参数设置"
+msgstr ""
+
+msgid "运行日志"
+msgstr ""
+
+msgid "基于 RSS 自动追番、订阅、下载、刮削与洗版工具，OpenWrt 原生轻量化运行。"
+msgstr ""
+
+msgid "当前运行状态"
+msgstr ""
+
+msgid "ANI-RSS Web 控制台"
+msgstr ""
+
+msgid "打开 Web 管理界面"
+msgstr ""
+
+msgid "快捷操作"
+msgstr ""
+
+msgid "重启服务"
+msgstr ""
+
+msgid "一键下载 / 更新 ani-rss.jar"
+msgstr ""
+
+msgid "一键安装轻量 musl JRE"
+msgstr ""
+
+msgid "RUNNING 运行中"
+msgstr ""
+
+msgid "NOT READY 环境未就绪"
+msgstr ""
+
+msgid "STOPPED 已停止"
+msgstr ""
+
+msgid "监听端口"
+msgstr ""
+
+msgid "进程 PID"
+msgstr ""
+
+msgid "内存占用 (RSS)"
+msgstr ""
+
+msgid "CPU 硬件架构"
+msgstr ""
+
+msgid "Java 运行环境"
+msgstr ""
+
+msgid "核心程序 (ani-rss.jar)"
+msgstr ""
+
+msgid "数据存储目录"
+msgstr ""
+
+msgid "可用空间: "
+msgstr ""
+
+msgid "ANI-RSS 追番助手设置"
+msgstr ""
+
+msgid "在这里配置 ANI-RSS 原生运行参数、文件存储目录及 JVM 内存调优选项。"
+msgstr ""
+
+msgid "服务配置"
+msgstr ""
+
+msgid "基础设置"
+msgstr ""
+
+msgid "高级与性能设置"
+msgstr ""
+
+msgid "启用服务"
+msgstr ""
+
+msgid "开启或关闭 ANI-RSS 追番守护进程"
+msgstr ""
+
+msgid "Web 监听端口"
+msgstr ""
+
+msgid "绑定地址"
+msgstr ""
+
+msgid "数据与配置目录"
+msgstr ""
+
+msgid "追番下载存储目录"
+msgstr ""
+
+msgid "自定义 Java 路径"
+msgstr ""
+
+msgid "自定义 ani-rss.jar 路径"
+msgstr ""
+
+msgid "JVM 初始堆内存 (-Xms)"
+msgstr ""
+
+msgid "JVM 最大堆内存 (-Xmx)"
+msgstr ""
+
+msgid "额外 JVM 参数"
+msgstr ""
+
+msgid "下载与更新镜像加速源"
+msgstr ""
+
+msgid "推荐国内加速"
+msgstr ""
+
+msgid "备用代理镜像"
+msgstr ""
+
+msgid "官方直连"
+msgstr ""
+
+msgid "自定义加速前缀"
+msgstr ""
+
+msgid "清空日志"
+msgstr ""
+
+msgid "自动滚动到底部"
+msgstr ""
+
+msgid "行"
+msgstr ""

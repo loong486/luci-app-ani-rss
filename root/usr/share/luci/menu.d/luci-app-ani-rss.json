@@ -1,0 +1,36 @@
+{
+	"admin/services/ani-rss": {
+		"title": "ANI-RSS 追番",
+		"action": {
+			"type": "view",
+			"path": "ani-rss/overview"
+		},
+		"depends": {
+			"acl": [ "luci-app-ani-rss" ]
+		}
+	},
+	"admin/services/ani-rss/overview": {
+		"title": "运行概览",
+		"order": 1,
+		"action": {
+			"type": "view",
+			"path": "ani-rss/overview"
+		}
+	},
+	"admin/services/ani-rss/config": {
+		"title": "参数设置",
+		"order": 2,
+		"action": {
+			"type": "view",
+			"path": "ani-rss/config"
+		}
+	},
+	"admin/services/ani-rss/log": {
+		"title": "运行日志",
+		"order": 3,
+		"action": {
+			"type": "view",
+			"path": "ani-rss/log"
+		}
+	}
+}

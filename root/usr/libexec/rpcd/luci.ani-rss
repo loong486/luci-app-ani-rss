@@ -1,0 +1,53 @@
+#!/bin/sh
+# Copyright (C) 2026 OpenWrt / ImmortalWrt Community
+# RPCD script for luci-app-ani-rss
+
+PROG="/usr/bin/ani-rss-helper"
+
+case "$1" in
+	list)
+		cat <<EOF
+{
+	"status": {},
+	"get_log": { "lines": 100 },
+	"clear_log": {},
+	"download_jar": {},
+	"download_jre": {}
+}
+EOF
+		;;
+	call)
+		case "$2" in
+			status)
+				$PROG status
+				;;
+			get_log)
+				read -r input
+				lines=100
+				if [ -n "$input" ]; then
+					val=$(echo "$input" | grep -o '"lines":[0-9]*' | cut -d: -f2)
+					[ -n "$val" ] && lines="$val"
+				fi
+				echo -n "{\"log\": "
+				$PROG get_log "$lines" | awk 'BEGIN{print "["} {gsub(/\\/,"\\\\"); gsub(/"/,"\\\""); printf "%s\"%s\"", (NR>1?",":""), $0} END{print "]"}'
+				echo "}"
+				;;
+			clear_log)
+				$PROG clear_log
+				;;
+			download_jar)
+				$PROG download_jar
+				;;
+			download_jre)
+				$PROG download_jre
+				;;
+			*)
+				echo "{\"error\": \"Method not found\"}"
+				exit 1
+				;;
+		esac
+		;;
+	*)
+		exit 1
+		;;
+esac

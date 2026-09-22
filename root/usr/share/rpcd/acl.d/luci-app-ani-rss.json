@@ -1,0 +1,19 @@
+{
+	"luci-app-ani-rss": {
+		"description": "Grant UCI and RPC access for luci-app-ani-rss",
+		"read": {
+			"uci": [ "ani-rss" ],
+			"ubus": {
+				"luci.ani-rss": [ "status", "get_log" ],
+				"service": [ "list" ]
+			}
+		},
+		"write": {
+			"uci": [ "ani-rss" ],
+			"ubus": {
+				"luci.ani-rss": [ "clear_log", "download_jar", "download_jre" ],
+				"service": [ "set" ]
+			}
+		}
+	}
+}
