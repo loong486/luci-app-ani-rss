@@ -10,6 +10,16 @@
 
 ---
 
+## 📖 关于本项目 (About)
+
+> **让 OpenWrt 路由器变身 24 小时低功耗追番中枢 —— 纯原生、零 Docker 负担的 ANI-RSS LuCI 插件。**
+
+- **🎯 项目初衷**：[ANI-RSS](https://github.com/wushuo894/ani-rss) 是一款优秀的动漫自动化订阅、下载与媒体刮削工具，但以往在软路由或嵌入式设备上普遍依赖 Docker。在 flash 或 RAM 较为有限的路由器硬件上，运行完整的 Docker 引擎及容器网络开销极大。
+- **💡 创新设计**：本项目通过 OpenWrt 原生 `procd` 守护进程接管 `ani-rss.jar` 的完整生命周期，并在前端封装了现代化的 LuCI JS 控制台。不仅实现了 **0% Docker 资源浪费**，还内置了面向 OpenWrt `musl-libc` 的轻量级 Headless JRE 自动部署机制与防 OOM 内存调控，实现了真正的“一键安装、开箱即用”。
+- **🔗 上游声明**：本项目为 OpenWrt Web 交互与系统适配层，核心追番程序版权归属于原作者 [wushuo894/ani-rss](https://github.com/wushuo894/ani-rss)。
+
+---
+
 ## ✨ 核心特性
 
 - **纯原生进程守护**：直接由 OpenWrt `procd` 管理生命周期，自动保活、崩溃拉起，无 Docker 引擎的巨大资源开销。
